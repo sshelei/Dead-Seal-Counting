@@ -18,7 +18,7 @@ annotations_dir = output_dir / "annotations"
 annotated_dir.mkdir(parents=True, exist_ok=True)
 annotations_dir.mkdir(parents=True, exist_ok=True)
 
-single_image_path = "/home/leish/dead_seal_project/images/DJI_0249.jpg"
+#single_image_path = "/home/leish/dead_seal_project/images/DJI_0249.jpg"
 
 def extract_predictions(workflow_result):
     """Handle common Roboflow workflow response shapes."""
@@ -93,8 +93,8 @@ def annotate_image(image_path):
 
     result = run_workflow(image_path)
     predictions = extract_predictions(result)
-    #print(f"{image_path.name}: found {len(predictions)} predictions")
-    print(f"{image_path}: found {len(predictions)} predictions")
+    print(f"{image_path.name}: found {len(predictions)} predictions")
+    #print(f"{image_path}: found {len(predictions)} predictions")
     json_output_seals = []
     for i, pred in enumerate(predictions):
         if not isinstance(pred, dict):
@@ -116,19 +116,19 @@ def annotate_image(image_path):
             }
         )
 
-    #output_image_path = annotated_dir / f"{image_path.stem}_annotated.jpg"
-    output_image_path = annotated_dir / f"{image_path}_annotated.jpg"
+    output_image_path = annotated_dir / f"{image_path.stem}_annotated.jpg"
+    #output_image_path = annotated_dir / f"{image_path}_annotated.jpg"
     cv2.imwrite(str(output_image_path), image)
-    output_json_path = annotations_dir / f"{image_path}.json"
-    #output_json_path = annotations_dir / f"{image_path.stem}.json"
+    #output_json_path = annotations_dir / f"{image_path}.json"
+    output_json_path = annotations_dir / f"{image_path.stem}.json"
     final_json = {
-        "image": image_path, #.name
+        "image": image_path.name,
         "seals": json_output_seals,
     }
     output_json_path.write_text(json.dumps(final_json, indent=4), encoding="utf-8")
     print(f"Wrote {output_image_path} and {output_json_path}")
 
-annotate_image(single_image_path)
-#for image_path in sorted(images_dir.iterdir()):
-    #if is_rgb_image(image_path):
-        #annotate_image(image_path)
+#annotate_image(single_image_path)
+for image_path in sorted(images_dir.iterdir()):
+    if is_rgb_image(image_path):
+        annotate_image(image_path)

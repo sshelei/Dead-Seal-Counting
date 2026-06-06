@@ -34,4 +34,5 @@ To train model,
 ``` 
 To run, use `python src/yolo_detect.py`  
 &emsp; &nbsp;  Note: yolo_detect.py works better with folder of images, not really single image path
+&emsp; &nbsp;  Note: Need to change input and output paths
   
