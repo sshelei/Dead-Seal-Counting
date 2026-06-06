@@ -6,15 +6,13 @@ In other words,
 1) Seal Detection
 2) Classifying as Alive, Dead, or Uncertain
 ---
-Make sure your environment has python installed. If on Linux distribution (WSL, etc), set up a python virtual environment and install needed packages.  
+Make sure your environment has python installed. If on Linux distribution (WSL, etc), set up a python virtual environment and install needed packages. Dataset used is shared Box folder Island thermal-20260502T194355Z-3-00. Download dataset and move images to data folder.
 To run cli.py:  
 &emsp; cli.py has three subcommands: init (initializes the folders needed, can be skipped), detect (corresponds to Step 1), run (corresponds to Step 2)    
 &emsp; `python src/cli.py init`  
 &emsp; `python src/cli.py detect`[optional args]  
-&emsp; &nbsp; Note: Since the images are in images folder not data, need to include --input images  
 &emsp; &nbsp; Optional args are explained in more detail in the file  
 &emsp;  `python src/cli.py run` [optional args]  
-&emsp; &nbsp;     Note: Since the images are in images folder not data, need to include --input images  
 &emsp; &nbsp;     Note: To align the RGB and Thermal images, include `--calibration calibration`. See src/CALIBRATION.md for more info.  
 
 yolo_detect.py replaces Step 1) Seal Detection with a pre-trained YOLO model “seal Computer Vision Model” by KSpicY (https://universe.roboflow.com/kspicy/seal-ekfsj).  
