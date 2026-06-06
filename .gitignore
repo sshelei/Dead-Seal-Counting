@@ -1,0 +1,5 @@
+annotations/
+classifier_outputs/
+outputs/
+yolo_outputs/
+images/
