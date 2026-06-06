@@ -6,7 +6,7 @@ In other words,
 1) Seal Detection
 2) Classifying as Alive, Dead, or Uncertain
 ---
-Make sure your environment has python installed. If on Linux distribution (WSL, etc), set up a python virtual environment and install needed packages. Dataset used is shared Box folder Island thermal-20260502T194355Z-3-00. Download dataset and move images to data folder.
+Make sure your environment has python installed. If on Linux distribution (WSL, etc), set up a python virtual environment and install needed packages. Dataset used is shared Box folder Island thermal-20260502T194355Z-3-00. Download dataset and move images to data folder.  
 To run cli.py:  
 &emsp; cli.py has three subcommands: init (initializes the folders needed, can be skipped), detect (corresponds to Step 1), run (corresponds to Step 2)    
 &emsp; `python src/cli.py init`  
