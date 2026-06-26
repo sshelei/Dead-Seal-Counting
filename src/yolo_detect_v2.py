@@ -6,10 +6,10 @@ import json
 import numpy as np
 
 # Point this to the 'best.pt' you just downloaded from Colab
-model_path = "src/best.pt" 
+model_path = "src/best_1.pt" 
 
 images_dir = Path("/home/leish/dead_seal_project/images")
-output_dir = Path("/home/leish/dead_seal_project/yolo_outputs_v2")
+output_dir = Path("/home/leish/dead_seal_project/yolo_outputs_v3")
 annotated_dir = output_dir / "annotated"
 annotations_dir = output_dir / "annotations"
 annotated_dir.mkdir(parents=True, exist_ok=True)
@@ -68,14 +68,14 @@ def draw_prediction(image, polygon, points, label, confidence):
     
 
 
-def run_workflow(image_path):
+def run_workflow(image_path, height, width):
     return get_sliced_prediction(
         str(image_path),
         detection_model,
-        slice_height=640,
-        slice_width=640,
-        overlap_height_ratio=0.2,
-        overlap_width_ratio=0.2
+        slice_height=int(height/2),
+        slice_width=int(width/2),
+        overlap_height_ratio=0.3,
+        overlap_width_ratio=0.3
     )
 
 
@@ -83,8 +83,8 @@ def annotate_image(image_path):
     image = cv2.imread(str(image_path))
     if image is None:
         raise ValueError(f"Could not read image: {image_path}")
-
-    result = run_workflow(image_path)
+    height, width, _ = image.shape
+    result = run_workflow(image_path, height, width)
     json_output_seals = []
     #predictions = extract_predictions(result)
    
@@ -129,7 +129,7 @@ def is_rgb_image(path):
 detection_model = AutoDetectionModel.from_pretrained(
     model_type='yolov8',
     model_path=model_path,
-    confidence_threshold=0.1,
+    confidence_threshold=0.2,
     device="cpu" # Or "cuda" if you have a local NVIDIA GPU
 )
 
