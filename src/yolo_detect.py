@@ -2,6 +2,7 @@ import cv2
 import json
 import numpy as np
 from pathlib import Path
+import time
 
 # 1. Import the library
 from inference_sdk import InferenceHTTPClient
@@ -132,3 +133,4 @@ def annotate_image(image_path):
 for image_path in sorted(images_dir.iterdir()):
     if is_rgb_image(image_path):
         annotate_image(image_path)
+        time.sleep(2)

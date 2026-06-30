@@ -90,6 +90,9 @@ def annotate_image(image_path):
    
     print(f"{image_path.name}: found {len(result.object_prediction_list)} predictions")
     #print(f"{image_path}: found {len(predictions)} predictions")
+    pred = result.object_prediction_list[0]
+    print(pred)
+    print(hasattr(pred, "mask"), pred.mask)
     for i, pred in enumerate(result.object_prediction_list):
         x1, y1, x2, y2 = [int(round(v)) for v in pred.bbox.to_xyxy()]
         confidence = float(pred.score.value)

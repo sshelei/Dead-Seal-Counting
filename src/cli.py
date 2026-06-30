@@ -1530,8 +1530,8 @@ def extract_feature_rows(
         mask = annotation_mask(measurement_annotation, measure_width, measure_height)
         if mask.sum() == 0:
             continue
-        bbox_x, bbox_y, bbox_w, bbox_h = annotation_bbox(annotation)
-        thermal_bbox_x, thermal_bbox_y, thermal_bbox_w, thermal_bbox_h = annotation_bbox(measurement_annotation)
+        bbox_x, bbox_y, bbox_w, bbox_h = annotation_polygon_points(annotation)
+        thermal_bbox_x, thermal_bbox_y, thermal_bbox_w, thermal_bbox_h = annotation_polygon_points(measurement_annotation)
         seal_pixels = thermal_measurement[mask > 0]
         binary_pixels = binary[mask > 0]
         background_mask = background_ring(mask, measure_width, measure_height)
@@ -1727,12 +1727,12 @@ def draw_annotations(
 
 
 def draw_annotation_shape(image: np.ndarray, annotation: dict[str, Any], color: tuple[int, int, int]) -> None:
-    if "bbox" in annotation:
-        x, y, w, h = [int(round(float(v))) for v in annotation["bbox"]]
-        cv2.rectangle(image, (x, y), (x + w, y + h), color, 4)
-    elif "polygon" in annotation:
+    if "polygon" in annotation:
         points = np.array(annotation["polygon"], dtype=np.int32)
         cv2.polylines(image, [points], isClosed=True, color=color, thickness=4)
+    elif "bbox" in annotation:
+        x, y, w, h = [int(round(float(v))) for v in annotation["bbox"]]
+        cv2.rectangle(image, (x, y), (x + w, y + h), color, 4)
 
 
 def annotation_label_anchor(annotation: dict[str, Any]) -> tuple[int, int]:
@@ -1780,18 +1780,18 @@ def prediction_color(predicted_label: str) -> tuple[int, int, int]:
 
 def annotation_mask(annotation: dict[str, Any], width: int, height: int) -> np.ndarray:
     mask = np.zeros((height, width), dtype=np.uint8)
-    if "bbox" in annotation:
+    if "polygon" in annotation:
+        points = np.array(annotation["polygon"], dtype=np.float32)
+        points[:, 0] = np.clip(points[:, 0], 0, width - 1)
+        points[:, 1] = np.clip(points[:, 1], 0, height - 1)
+        cv2.fillPoly(mask, [points.astype(np.int32)], 255)
+    elif "bbox" in annotation:
         x, y, w, h = [int(round(float(v))) for v in annotation["bbox"]]
         x0 = max(0, min(width, x))
         y0 = max(0, min(height, y))
         x1 = max(0, min(width, x + w))
         y1 = max(0, min(height, y + h))
         mask[y0:y1, x0:x1] = 255
-    elif "polygon" in annotation:
-        points = np.array(annotation["polygon"], dtype=np.float32)
-        points[:, 0] = np.clip(points[:, 0], 0, width - 1)
-        points[:, 1] = np.clip(points[:, 1], 0, height - 1)
-        cv2.fillPoly(mask, [points.astype(np.int32)], 255)
     else:
         raise ValueError(f"Annotation needs bbox or polygon: {annotation}")
     return mask
