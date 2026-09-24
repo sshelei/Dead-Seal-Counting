@@ -1,23 +1,11 @@
+# This program sends entire drone images to Roboflow Model hosted over the local server
+
 import cv2
 import json
 import numpy as np
 from pathlib import Path
 import time
-
-# 1. Import the library
 from inference_sdk import InferenceHTTPClient
-
-# 2. Connect to your workspace
-client = InferenceHTTPClient(
-  api_url="https://serverless.roboflow.com",
-  api_key="VTevmVsVleH9iHTYjg4t"
-)
-images_dir = Path("/home/leish/dead_seal_project/images")
-output_dir = Path("/home/leish/dead_seal_project/yolo_outputs")
-annotated_dir = output_dir / "annotated"
-annotations_dir = output_dir / "annotations"
-annotated_dir.mkdir(parents=True, exist_ok=True)
-annotations_dir.mkdir(parents=True, exist_ok=True)
 
 #single_image_path = "/home/leish/dead_seal_project/images/DJI_0249.jpg"
 
@@ -86,8 +74,17 @@ def draw_prediction(image, polygon, label, confidence):
     cv2.putText(image, text, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 0), 2)
     return x1, y1, x2, y2
 
+client = InferenceHTTPClient(
+  api_url="https://serverless.roboflow.com",
+  api_key="VTevmVsVleH9iHTYjg4t"
+)
 
 def annotate_image(image_path):
+    output_dir = Path("/home/leish/dead_seal_project/yolo_outputs")
+    annotated_dir = output_dir / "annotated"
+    annotations_dir = output_dir / "annotations"
+    annotated_dir.mkdir(parents=True, exist_ok=True)
+    annotations_dir.mkdir(parents=True, exist_ok=True)
     image = cv2.imread(str(image_path))
     if image is None:
         raise ValueError(f"Could not read image: {image_path}")
@@ -130,7 +127,9 @@ def annotate_image(image_path):
     print(f"Wrote {output_image_path} and {output_json_path}")
 
 #annotate_image(single_image_path)
-for image_path in sorted(images_dir.iterdir()):
-    if is_rgb_image(image_path):
-        annotate_image(image_path)
-        time.sleep(2)
+if __name__ == "__main__":
+    images_dir = Path("/home/leish/dead_seal_project/images")
+    for image_path in sorted(images_dir.iterdir()):
+        if is_rgb_image(image_path):
+            annotate_image(image_path)
+            time.sleep(2)

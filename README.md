@@ -15,9 +15,15 @@ To run cli.py:
 &emsp;  `python src/cli.py run` [optional args]  
 &emsp; &nbsp;     Note: To align the RGB and Thermal images, include `--calibration calibration`. See src/CALIBRATION.md for more info.  
 
-yolo_detect.py replaces Step 1) Seal Detection with a pre-trained YOLO model “seal Computer Vision Model” by KSpicY (https://universe.roboflow.com/kspicy/seal-ekfsj).  
-Due to the model not having weights available to download, either would have to send requests to local server (under API credits limit) or download dataset and train locally.  
-To download dataset, 
+To replace Step 1) Seal Detection (the detect step), different YOLO models were tested.
+The best is WAID with manually labeled drone images in 640 x 640 tiles (defined by weights model_weights/best_8.pt)
+WAID_detect_sahi.py is intended to use downloaded WAID model and sahi to slice up images and creates output folder with annotated/annotations subfolder. Feed the annotations subfolder path to `python src/cli.py run`
+
+yolo_detect_server.py uses pre-trained YOLO model “seal Computer Vision Model” by KSpicY (https://universe.roboflow.com/kspicy/seal-ekfsj).  
+
+Due to the model not having weights available to download, either would have to send requests to local server (under API credits limit) or download dataset and train locally as done in yolo_detect_sahi.py.  
+
+To download dataset (see train_seal_model.ipynb for reference), 
 ```python
   pip install roboflow ultralytics  
   from roboflow import Roboflow  

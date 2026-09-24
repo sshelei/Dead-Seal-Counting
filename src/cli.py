@@ -1,3 +1,7 @@
+# this program executes the first pipeline for dead seal counting
+# calling the file with `detect`` filters and masks the RGB images to detect seals and outputs bounding boxes
+# calling the file with `run` generates the classification labels
+
 from __future__ import annotations
 
 import argparse
@@ -1193,6 +1197,7 @@ def run_pipeline(
                     annotations=annotations,
                     feature_rows=extracted_rows,
                     output_root=output_root / "annotation_review",
+                    calibration=calibration
                 )
 
         pairing_rows.append(
@@ -1346,14 +1351,28 @@ def write_qa_artifacts(
         raise ValueError(f"Could not read thermal image: {thermal_record.path}")
 
     if calibration:
-        thermal_for_overlay = warp_thermal_to_rgb(thermal, rgb.shape[1], rgb.shape[0], calibration)
+        rgb_for_overlay = cv2.warpPerspective(
+          rgb,
+          calibration.transform_rgb_to_thermal,
+          (thermal.shape[1], thermal.shape[0]),
+          flags=cv2.INTER_LINEAR,
+          borderMode=cv2.BORDER_CONSTANT,
+          borderValue=0,
+        )
+        thermal_for_overlay = thermal
+        #thermal_for_overlay = warp_thermal_to_rgb(thermal, rgb.shape[1], rgb.shape[0], calibration)
     else:
-        thermal_for_overlay = cv2.resize(thermal, (rgb.shape[1], rgb.shape[0]), interpolation=cv2.INTER_LINEAR)
+        rgb_for_overlay = cv2.resize(rgb, (thermal.shape[1], thermal.shape[0]),
+        interpolation=cv2.INTER_AREA)
+        thermal_for_overlay = thermal
+        #thermal_for_overlay = cv2.resize(thermal, (rgb.shape[1], rgb.shape[0]), interpolation=cv2.INTER_LINEAR)
     thermal_norm = normalize_uint8(thermal_for_overlay)
     heatmap = cv2.applyColorMap(thermal_norm, cv2.COLORMAP_INFERNO)
-    overlay = cv2.addWeighted(rgb, 0.58, heatmap, 0.42, 0)
+    #overlay = cv2.addWeighted(rgb, 0.58, heatmap, 0.42, 0)
+    overlay = cv2.addWeighted(rgb_for_overlay, 0.58, heatmap, 0.42, 0)
 
-    rgb_preview = resize_to_height(rgb, 720)
+    #rgb_preview = resize_to_height(rgb, 720)
+    rgb_preview = resize_to_height(rgb_for_overlay, 720)
     heatmap_preview = resize_to_height(heatmap, 720)
     side_by_side = np.hstack([rgb_preview, heatmap_preview])
 
@@ -1530,8 +1549,8 @@ def extract_feature_rows(
         mask = annotation_mask(measurement_annotation, measure_width, measure_height)
         if mask.sum() == 0:
             continue
-        bbox_x, bbox_y, bbox_w, bbox_h = annotation_polygon_points(annotation)
-        thermal_bbox_x, thermal_bbox_y, thermal_bbox_w, thermal_bbox_h = annotation_polygon_points(measurement_annotation)
+        bbox_x, bbox_y, bbox_w, bbox_h = annotation_bbox(annotation)
+        thermal_bbox_x, thermal_bbox_y, thermal_bbox_w, thermal_bbox_h = annotation_bbox(measurement_annotation)
         seal_pixels = thermal_measurement[mask > 0]
         binary_pixels = binary[mask > 0]
         background_mask = background_ring(mask, measure_width, measure_height)
@@ -1687,6 +1706,7 @@ def write_annotation_review_artifacts(
     annotations: list[dict[str, Any]],
     feature_rows: list[dict[str, Any]],
     output_root: Path,
+    calibration: CalibrationRecord | None = None
 ) -> None:
     output_root.mkdir(parents=True, exist_ok=True)
     features_by_id = {str(row.get("seal_id", "")): row for row in feature_rows}
@@ -1700,7 +1720,19 @@ def write_annotation_review_artifacts(
     cv2.imwrite(str(rgb_review_path), rgb_review)
     write_review_tiles(rgb_review, output_root / "tiles", f"{rgb_path.stem}_rgb_annotations")
     if overlay is not None:
-        overlay_review = draw_annotations(overlay, annotations, features_by_id)
+        overlay_annotations = [
+          transform_annotation(annotation, calibration) if calibration else annotation
+          for annotation in annotations
+        ]
+        overlay_review = draw_annotations(
+            overlay,
+            overlay_annotations,
+            features_by_id,
+            label_scale=0.25,
+            label_thickness=1,
+            label_padding=1,
+            shape_thickness=1,
+        )
         overlay_review_path = output_root / f"{rgb_path.stem}_overlay_annotations.jpg"
         cv2.imwrite(str(overlay_review_path), overlay_review)
         write_review_tiles(overlay_review, output_root / "tiles", f"{rgb_path.stem}_overlay_annotations")
@@ -1710,6 +1742,10 @@ def draw_annotations(
     image: np.ndarray,
     annotations: list[dict[str, Any]],
     features_by_id: dict[str, dict[str, Any]],
+    label_scale: float = 0.65,
+    label_thickness: int = 2,
+    label_padding: int = 3,
+    shape_thickness: int = 4,
 ) -> np.ndarray:
     result = image.copy()
     for index, annotation in enumerate(annotations, start=1):
@@ -1719,20 +1755,34 @@ def draw_annotations(
         confidence = str(feature.get("prediction_confidence", ""))
         known = normalize_label(annotation.get("label")) or "unlabeled"
         color = prediction_color(predicted)
-        draw_annotation_shape(result, annotation, color)
+        draw_annotation_shape(result, annotation, color, thickness=shape_thickness)
         x, y = annotation_label_anchor(annotation)
         label = f"{compact_seal_id(seal_id)} {prediction_code(predicted)}"
-        draw_readable_label(result, label, x, y, color, scale=0.65)
+        draw_readable_label(
+            result,
+            label,
+            x,
+            y,
+            color,
+            scale=label_scale,
+            thickness=label_thickness,
+            padding=label_padding,
+        )
     return result
 
 
-def draw_annotation_shape(image: np.ndarray, annotation: dict[str, Any], color: tuple[int, int, int]) -> None:
-    if "polygon" in annotation:
-        points = np.array(annotation["polygon"], dtype=np.int32)
-        cv2.polylines(image, [points], isClosed=True, color=color, thickness=4)
-    elif "bbox" in annotation:
+def draw_annotation_shape(
+    image: np.ndarray,
+    annotation: dict[str, Any],
+    color: tuple[int, int, int],
+    thickness: int = 4,
+) -> None:
+    if "bbox" in annotation:
         x, y, w, h = [int(round(float(v))) for v in annotation["bbox"]]
-        cv2.rectangle(image, (x, y), (x + w, y + h), color, 4)
+        cv2.rectangle(image, (x, y), (x + w, y + h), color, thickness)
+    elif "polygon" in annotation:
+        points = np.array(annotation["polygon"], dtype=np.int32)
+        cv2.polylines(image, [points], isClosed=True, color=color, thickness=thickness)
 
 
 def annotation_label_anchor(annotation: dict[str, Any]) -> tuple[int, int]:
@@ -1743,14 +1793,28 @@ def annotation_label_anchor(annotation: dict[str, Any]) -> tuple[int, int]:
     return int(np.min(points[:, 0])), max(24, int(np.min(points[:, 1])) - 10)
 
 
-def draw_readable_label(image: np.ndarray, text: str, x: int, y: int, color: tuple[int, int, int], scale: float = 0.8) -> None:
+def draw_readable_label(
+    image: np.ndarray,
+    text: str,
+    x: int,
+    y: int,
+    color: tuple[int, int, int],
+    scale: float = 0.8,
+    thickness: int = 2,
+    padding: int = 3,
+) -> None:
     font = cv2.FONT_HERSHEY_SIMPLEX
-    thickness = 2
     (width, height), baseline = cv2.getTextSize(text, font, scale, thickness)
-    x = max(0, min(x, image.shape[1] - width - 4))
-    y = max(height + 4, min(y, image.shape[0] - baseline - 4))
-    cv2.rectangle(image, (x, y - height - 6), (x + width + 6, y + baseline + 4), (0, 0, 0), -1)
-    cv2.putText(image, text, (x + 3, y), font, scale, color, thickness, cv2.LINE_AA)
+    x = max(0, min(x, image.shape[1] - width - padding * 2))
+    y = max(height + padding * 2, min(y, image.shape[0] - baseline - padding - 1))
+    cv2.rectangle(
+        image,
+        (x, y - height - padding * 2),
+        (x + width + padding * 2, y + baseline + padding + 1),
+        (0, 0, 0),
+        -1,
+    )
+    cv2.putText(image, text, (x + padding, y), font, scale, color, thickness, cv2.LINE_AA)
 
 
 def compact_seal_id(seal_id: str) -> str:
@@ -1780,18 +1844,18 @@ def prediction_color(predicted_label: str) -> tuple[int, int, int]:
 
 def annotation_mask(annotation: dict[str, Any], width: int, height: int) -> np.ndarray:
     mask = np.zeros((height, width), dtype=np.uint8)
-    if "polygon" in annotation:
-        points = np.array(annotation["polygon"], dtype=np.float32)
-        points[:, 0] = np.clip(points[:, 0], 0, width - 1)
-        points[:, 1] = np.clip(points[:, 1], 0, height - 1)
-        cv2.fillPoly(mask, [points.astype(np.int32)], 255)
-    elif "bbox" in annotation:
+    if "bbox" in annotation:
         x, y, w, h = [int(round(float(v))) for v in annotation["bbox"]]
         x0 = max(0, min(width, x))
         y0 = max(0, min(height, y))
         x1 = max(0, min(width, x + w))
         y1 = max(0, min(height, y + h))
         mask[y0:y1, x0:x1] = 255
+    elif "polygon" in annotation:
+        points = np.array(annotation["polygon"], dtype=np.float32)
+        points[:, 0] = np.clip(points[:, 0], 0, width - 1)
+        points[:, 1] = np.clip(points[:, 1], 0, height - 1)
+        cv2.fillPoly(mask, [points.astype(np.int32)], 255)
     else:
         raise ValueError(f"Annotation needs bbox or polygon: {annotation}")
     return mask

@@ -1,3 +1,5 @@
+# This program uses sahi to slice up drone images and sends to downloaded model defined by best_1.pt files
+
 from sahi import AutoDetectionModel
 from sahi.predict import get_sliced_prediction
 from pathlib import Path
