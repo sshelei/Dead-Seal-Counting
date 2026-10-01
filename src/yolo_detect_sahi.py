@@ -1,5 +1,4 @@
 # This program uses sahi to slice up drone images and sends to downloaded model defined by best_1.pt files
-# best_1.pt file is downloaded bounding box model for "seal Computer Vision Model" by KSpicY
 
 from sahi import AutoDetectionModel
 from sahi.predict import get_sliced_prediction
@@ -8,8 +7,8 @@ import cv2
 import json
 import numpy as np
 
-# Point this to the 'best.pt' you just downloaded from Colab
-model_path = "src/best_1.pt" 
+# best_1.pt file is downloaded bounding box model for "seal Computer Vision Model" by KSpicY
+model_path = "model_weights/best_1.pt" 
 
 images_dir = Path("/home/leish/dead_seal_project/images")
 output_dir = Path("/home/leish/dead_seal_project/yolo_outputs_v3")

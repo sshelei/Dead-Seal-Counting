@@ -3,3 +3,4 @@ classifier_outputs/
 outputs/
 yolo_outputs/
 images/
+src/__pycache__
